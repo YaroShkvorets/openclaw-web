@@ -884,7 +884,7 @@ const SETUP_HTML = `<!doctype html>
     <!-- GitHub Webhook -->
     <div class="section">
       <button class="accordion-trigger" aria-expanded="false">
-        <span>③ GitHub Webhook Proxy</span>
+        <span>③ GitHub Webhook Proxy (optional)</span>
       </button>
       <div class="accordion-content"><div class="inner">
         <div id="webhookConfig" class="muted">Loading...</div>
