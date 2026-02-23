@@ -668,6 +668,25 @@ const SETUP_HTML = `<!doctype html>
       font-family: var(--mono);
     }
 
+    /* Actions bar */
+    .actions-bar {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+    .actions-row {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .console-inline {
+      margin-top: 0.75rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid var(--border);
+    }
+
     /* Accordion sections */
     .section { margin-bottom: 0.5rem; }
     .accordion-trigger {
@@ -857,6 +876,48 @@ const SETUP_HTML = `<!doctype html>
       </div>
     </div>
 
+    <!-- Actions bar — always visible -->
+    <div class="actions-bar">
+      <div class="actions-row">
+        <button id="run" class="btn btn-primary">▶ Run Setup</button>
+        <button id="pairingApprove" class="btn btn-secondary">🔗 Approve Pairing</button>
+        <button id="gatewayRestart" class="btn btn-secondary">🔄 Restart Gateway</button>
+        <button id="reset" class="btn btn-danger">⚠ Reset</button>
+      </div>
+      <pre id="log"></pre>
+
+      <div class="console-inline">
+        <div class="console-row">
+          <select id="consoleCmd">
+            <option value="gateway.restart">gateway.restart</option>
+            <option value="gateway.stop">gateway.stop</option>
+            <option value="gateway.start">gateway.start</option>
+            <option value="openclaw.status">openclaw status</option>
+            <option value="openclaw.health">openclaw health</option>
+            <option value="openclaw.doctor">openclaw doctor</option>
+            <option value="openclaw.logs.tail">openclaw logs --tail N</option>
+            <option value="openclaw.config.get">openclaw config get</option>
+            <option value="openclaw.version">openclaw --version</option>
+            <option value="openclaw.devices.list">openclaw devices list</option>
+            <option value="openclaw.devices.approve">openclaw devices approve</option>
+            <option value="openclaw.plugins.list">openclaw plugins list</option>
+            <option value="openclaw.plugins.enable">openclaw plugins enable</option>
+          </select>
+          <input id="consoleArg" type="text" placeholder="arg" style="max-width:160px" />
+          <button id="consoleRun" class="btn btn-secondary btn-sm">Run</button>
+        </div>
+        <pre id="consoleOut"></pre>
+      </div>
+
+      <details style="margin-top: 0.5rem">
+        <summary>Pairing helper</summary>
+        <div style="margin-top:0.5rem">
+          <button id="devicesRefresh" class="btn btn-sm btn-secondary">Refresh pending devices</button>
+          <div id="devicesList" class="muted" style="margin-top:0.5rem"></div>
+        </div>
+      </details>
+    </div>
+
     <!-- 1. Provider -->
     <div class="section">
       <button class="accordion-trigger" aria-expanded="false">
@@ -943,58 +1004,7 @@ const SETUP_HTML = `<!doctype html>
       </div></div>
     </div>
 
-    <!-- 3. Run -->
-    <div class="section">
-      <button class="accordion-trigger" aria-expanded="false">
-        <span>④ Run Onboarding</span>
-      </button>
-      <div class="accordion-content"><div class="inner">
-        <div class="btn-row">
-          <button id="run" class="btn btn-primary">Run setup</button>
-          <button id="pairingApprove" class="btn btn-secondary">Approve pairing</button>
-          <button id="reset" class="btn btn-danger">Reset</button>
-        </div>
-        <pre id="log"></pre>
-        <div class="hint" style="margin-top:0.5rem">Reset deletes the config file so you can re-run onboarding.</div>
-
-        <details style="margin-top: 1rem">
-          <summary>Pairing helper</summary>
-          <div style="margin-top:0.5rem">
-            <button id="devicesRefresh" class="btn btn-sm btn-secondary">Refresh pending devices</button>
-            <div id="devicesList" class="muted" style="margin-top:0.5rem"></div>
-          </div>
-        </details>
-      </div></div>
-    </div>
-
-    <!-- Debug console -->
-    <div class="section">
-      <button class="accordion-trigger" aria-expanded="false">
-        <span>⚙ Debug Console</span>
-      </button>
-      <div class="accordion-content"><div class="inner">
-        <div class="console-row">
-          <select id="consoleCmd">
-            <option value="gateway.restart">gateway.restart</option>
-            <option value="gateway.stop">gateway.stop</option>
-            <option value="gateway.start">gateway.start</option>
-            <option value="openclaw.status">openclaw status</option>
-            <option value="openclaw.health">openclaw health</option>
-            <option value="openclaw.doctor">openclaw doctor</option>
-            <option value="openclaw.logs.tail">openclaw logs --tail N</option>
-            <option value="openclaw.config.get">openclaw config get</option>
-            <option value="openclaw.version">openclaw --version</option>
-            <option value="openclaw.devices.list">openclaw devices list</option>
-            <option value="openclaw.devices.approve">openclaw devices approve</option>
-            <option value="openclaw.plugins.list">openclaw plugins list</option>
-            <option value="openclaw.plugins.enable">openclaw plugins enable</option>
-          </select>
-          <input id="consoleArg" type="text" placeholder="arg" style="max-width:160px" />
-          <button id="consoleRun" class="btn btn-secondary btn-sm">Run</button>
-        </div>
-        <pre id="consoleOut"></pre>
-      </div></div>
-    </div>
+    <!-- (Run Onboarding + Debug Console moved to actions bar above) -->
 
     <!-- 6. Config editor -->
     <div class="section">

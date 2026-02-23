@@ -248,6 +248,25 @@ interface DevicesResponse {
   }
   if (consoleRunEl) consoleRunEl.onclick = runConsole;
 
+  // Gateway restart button
+  const gatewayRestartEl = $("gatewayRestart");
+  if (gatewayRestartEl) {
+    gatewayRestartEl.onclick = async () => {
+      logEl.textContent = "Restarting gateway...\n";
+      try {
+        const j = await httpJson<ConsoleResponse>("/setup/api/console/run", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ cmd: "gateway.restart" }),
+        });
+        logEl.textContent += j.output ?? "Done.\n";
+        await refreshStatus();
+      } catch (e) {
+        logEl.textContent += `Error: ${String(e)}\n`;
+      }
+    };
+  }
+
   // ---------------------------------------------------------------------------
   // Config editor
   // ---------------------------------------------------------------------------
