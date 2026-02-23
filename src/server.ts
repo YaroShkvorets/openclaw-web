@@ -824,6 +824,7 @@ const SETUP_HTML = `<!doctype html>
     <div class="status-bar">
       <div class="status-left">
         <div id="status">Checking...</div>
+        <div id="webhookBadge"></div>
         <span id="statusDetails" class="muted"></span>
       </div>
       <div class="status-links">
@@ -932,7 +933,17 @@ const SETUP_HTML = `<!doctype html>
       </div></div>
     </div>
 
-    <!-- 5. Debug console -->
+    <!-- 5. GitHub Webhook -->
+    <div class="section">
+      <button class="accordion-trigger" aria-expanded="false">
+        <span>⑤ GitHub Webhook Proxy</span>
+      </button>
+      <div class="accordion-content"><div class="inner">
+        <div id="webhookConfig" class="muted">Loading...</div>
+      </div></div>
+    </div>
+
+    <!-- 6. Debug console -->
     <div class="section">
       <button class="accordion-trigger" aria-expanded="false">
         <span>⚙ Debug Console</span>
@@ -1123,6 +1134,7 @@ async function handleRequest(req: Request): Promise<Response> {
       return new Response(favicon, { headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=86400" } });
     }
     if (method === "GET" && pathname === "/setup/api/status") return handleSetupStatus();
+    if (method === "GET" && pathname === "/setup/api/webhook/status") return handleWebhookStatus();
     if (method === "GET" && pathname === "/setup/api/auth-groups") return json({ ok: true, authGroups: AUTH_GROUPS });
     if (method === "POST" && pathname === "/setup/api/run") return handleSetupRun(req);
     if (method === "GET" && pathname === "/setup/api/debug") return handleSetupDebug();
@@ -1238,6 +1250,23 @@ async function handleSetupStatus(): Promise<Response> {
     openclawVersion: openclawVersion || (hasEntry ? "unknown" : "not installed"),
     channelsAddHelp,
     authGroups: AUTH_GROUPS,
+  });
+}
+
+function handleWebhookStatus(): Response {
+  const enabled = !!(GITHUB_APP_ID && GITHUB_INSTALLATION_ID && GITHUB_APP_PEM_PATH);
+  const pemExists = GITHUB_APP_PEM_PATH ? fs.existsSync(GITHUB_APP_PEM_PATH) : false;
+  return json({
+    enabled,
+    config: {
+      GITHUB_WEBHOOK_SECRET: GITHUB_WEBHOOK_SECRET ? "••••••" : "(not set)",
+      GITHUB_APP_ID: GITHUB_APP_ID || "(not set)",
+      GITHUB_INSTALLATION_ID: GITHUB_INSTALLATION_ID || "(not set)",
+      GITHUB_APP_PEM_PATH: GITHUB_APP_PEM_PATH || "(not set)",
+      GITHUB_APP_PEM_EXISTS: pemExists,
+      OPENCLAW_HOOKS_URL: OPENCLAW_HOOKS_URL || "(not set)",
+      OPENCLAW_HOOKS_TOKEN: OPENCLAW_HOOKS_TOKEN ? "••••••" : "(not set)",
+    },
   });
 }
 

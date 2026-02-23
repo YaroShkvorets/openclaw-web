@@ -405,8 +405,45 @@ interface DevicesResponse {
   };
 
   // ---------------------------------------------------------------------------
+  // GitHub Webhook status
+  // ---------------------------------------------------------------------------
+  async function refreshWebhookStatus(): Promise<void> {
+    const badgeEl = $("webhookBadge");
+    const configEl = $("webhookConfig");
+
+    try {
+      const j = await httpJson<{
+        enabled: boolean;
+        config: Record<string, string | boolean>;
+      }>("/setup/api/webhook/status");
+
+      if (badgeEl) {
+        badgeEl.innerHTML = j.enabled
+          ? '<span class="badge badge-ok">Webhook</span>'
+          : '<span class="badge badge-warn">Webhook off</span>';
+      }
+
+      if (configEl) {
+        const rows = Object.entries(j.config).map(([key, val]) => {
+          const display = typeof val === "boolean" ? (val ? "✓ exists" : "✗ missing") : String(val);
+          const isSet = display !== "(not set)" && display !== "✗ missing";
+          return `<div style="display:flex;justify-content:space-between;padding:0.3rem 0;border-bottom:1px solid var(--border)">
+            <code style="font-size:0.78rem">${key}</code>
+            <span style="color:${isSet ? "var(--aqua)" : "var(--text-dim)"};font-size:0.8rem">${display}</span>
+          </div>`;
+        });
+        configEl.innerHTML = rows.join("");
+      }
+    } catch (e) {
+      if (badgeEl) badgeEl.innerHTML = '<span class="badge badge-err">Webhook error</span>';
+      if (configEl) configEl.textContent = `Error: ${String(e)}`;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Init
   // ---------------------------------------------------------------------------
   loadAuthGroupsFast();
   refreshStatus();
+  refreshWebhookStatus();
 })();
