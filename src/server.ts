@@ -60,6 +60,10 @@ const GATEWAY_TARGET = `http://${INTERNAL_GATEWAY_HOST}:${INTERNAL_GATEWAY_PORT}
 const OPENCLAW_ENTRY = process.env.OPENCLAW_ENTRY?.trim() || "/openclaw/dist/entry.js";
 const OPENCLAW_NODE = process.env.OPENCLAW_NODE?.trim() || "node";
 
+function entryExists(): boolean {
+  try { return fs.existsSync(OPENCLAW_ENTRY); } catch { return false; }
+}
+
 // ---------------------------------------------------------------------------
 // GitHub Webhook Proxy config
 // ---------------------------------------------------------------------------
@@ -245,6 +249,7 @@ async function runDoctorBestEffort(): Promise<void> {
 
 async function ensureGatewayRunning(): Promise<{ ok: boolean; reason?: string }> {
   if (!isConfigured()) return { ok: false, reason: "not configured" };
+  if (!entryExists()) return { ok: false, reason: `OpenClaw entry not found at ${OPENCLAW_ENTRY}` };
   if (gatewayProc) return { ok: true };
   if (!gatewayStarting) {
     gatewayStarting = (async () => {
@@ -1029,6 +1034,34 @@ function html(body: string, status = 200): Response {
   return new Response(body, { status, headers: { "Content-Type": "text/html; charset=utf-8" } });
 }
 
+function errorPage(title: string, detail: string, steps: string[]): string {
+  const stepHtml = steps.map((s) => `<li>${s}</li>`).join("\n");
+  return `<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>${title} — OpenClaw</title>
+<style>
+  body { font-family: 'Space Grotesk', system-ui, sans-serif; background: #0f0f0e; color: #fffffe; margin: 0; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 2rem; }
+  .card { max-width: 560px; background: #1a1a19; border: 1px solid #2a2a29; border-radius: 12px; padding: 2rem 2.5rem; }
+  h1 { font-size: 1.3rem; margin: 0 0 0.5rem; color: #ee758c; }
+  .detail { color: #bfbfbe; font-size: 0.9rem; margin-bottom: 1.25rem; }
+  code { background: #242423; padding: 0.15rem 0.4rem; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.85em; }
+  h2 { font-size: 0.9rem; color: #90ffea; margin: 0 0 0.5rem; font-weight: 600; }
+  ol { padding-left: 1.25rem; margin: 0; }
+  li { color: #bfbfbe; font-size: 0.85rem; margin-bottom: 0.4rem; line-height: 1.5; }
+  a { color: #90ffea; }
+  .footer { margin-top: 1.5rem; text-align: center; color: #7a7a79; font-size: 0.75rem; }
+</style></head><body>
+<div class="card">
+  <h1>${title}</h1>
+  <div class="detail">${detail}</div>
+  <h2>Next Steps</h2>
+  <ol>${stepHtml}</ol>
+  <div class="footer">Powered by <a href="https://pinax.network">Pinax</a> × <a href="https://openclaw.ai">OpenClaw</a></div>
+</div>
+</body></html>`;
+}
+
 function isUnderDir(p: string, root: string): boolean {
   const abs = path.resolve(p);
   const r = path.resolve(root);
@@ -1096,17 +1129,30 @@ async function handleRequest(req: Request): Promise<Response> {
   }
 
   if (isConfigured()) {
+    if (!entryExists()) {
+      return html(errorPage(
+        "OpenClaw Not Installed",
+        `The OpenClaw entry point was not found at <code>${OPENCLAW_ENTRY}</code>.`,
+        [
+          "Verify the Dockerfile builds OpenClaw correctly",
+          "Check that <code>OPENCLAW_ENTRY</code> env var points to the right path",
+          "Redeploy the service if the build failed",
+          `Visit <a href="/setup">/setup</a> for configuration options`,
+        ],
+      ), 503);
+    }
     try {
       await ensureGatewayRunning();
     } catch (err) {
-      const hint = [
-        "Gateway not ready.", String(err),
-        lastGatewayError ? `\n${lastGatewayError}` : "",
-        "\nTroubleshooting:",
-        "- Visit /setup and check the Debug Console",
-        "- Visit /setup/api/debug for config + gateway diagnostics",
-      ].join("\n");
-      return text(hint, 503);
+      return html(errorPage(
+        "Gateway Not Ready",
+        redactSecrets(String(err)),
+        [
+          `Visit <a href="/setup">/setup</a> and check the Debug Console`,
+          `Visit <a href="/setup/api/debug">/setup/api/debug</a> for diagnostics`,
+          lastGatewayError ? `Last error: <code>${redactSecrets(lastGatewayError)}</code>` : null,
+        ].filter(Boolean) as string[],
+      ), 503);
     }
   }
 
@@ -1160,13 +1206,23 @@ async function handleGitHubWebhook(req: Request): Promise<Response> {
 // Setup API handlers
 // ---------------------------------------------------------------------------
 async function handleSetupStatus(): Promise<Response> {
-  const version = await runCmd(OPENCLAW_NODE, clawArgs(["--version"]));
-  const channelsHelp = await runCmd(OPENCLAW_NODE, clawArgs(["channels", "add", "--help"]));
+  const hasEntry = entryExists();
+  let openclawVersion = "";
+  let channelsAddHelp = "";
+
+  if (hasEntry) {
+    const version = await runCmd(OPENCLAW_NODE, clawArgs(["--version"]));
+    openclawVersion = version.output.trim();
+    const channelsHelp = await runCmd(OPENCLAW_NODE, clawArgs(["channels", "add", "--help"]));
+    channelsAddHelp = channelsHelp.output;
+  }
+
   return json({
     configured: isConfigured(),
+    entryExists: hasEntry,
     gatewayTarget: GATEWAY_TARGET,
-    openclawVersion: version.output.trim(),
-    channelsAddHelp: channelsHelp.output,
+    openclawVersion: openclawVersion || (hasEntry ? "unknown" : "not installed"),
+    channelsAddHelp,
     authGroups: AUTH_GROUPS,
   });
 }
@@ -1340,6 +1396,9 @@ async function handleConsoleRun(req: Request): Promise<Response> {
 
   if (!ALLOWED_CONSOLE_COMMANDS.has(cmd)) {
     return json({ ok: false, error: "Command not allowed" }, 400);
+  }
+  if (!entryExists() && !cmd.startsWith("gateway.")) {
+    return json({ ok: false, output: `OpenClaw not installed: ${OPENCLAW_ENTRY} not found.\nCheck your Dockerfile build and redeploy.\n` }, 500);
   }
 
   try {
@@ -1687,12 +1746,17 @@ if (fs.existsSync(bootstrapPath)) {
 
 // Auto-start gateway
 if (isConfigured()) {
-  console.log("[wrapper] config detected; starting gateway...");
-  try {
-    await ensureGatewayRunning();
-    console.log("[wrapper] gateway ready");
-  } catch (err) {
-    console.error(`[wrapper] gateway failed to start at boot: ${String(err)}`);
+  if (!entryExists()) {
+    console.error(`[wrapper] OpenClaw entry not found at ${OPENCLAW_ENTRY} — cannot start gateway`);
+    console.error("[wrapper] Visit /setup for next steps");
+  } else {
+    console.log("[wrapper] config detected; starting gateway...");
+    try {
+      await ensureGatewayRunning();
+      console.log("[wrapper] gateway ready");
+    } catch (err) {
+      console.error(`[wrapper] gateway failed to start at boot: ${String(err)}`);
+    }
   }
 }
 

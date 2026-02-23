@@ -110,13 +110,22 @@
 
     return httpJson('/setup/api/status').then(function (j) {
       var ver = j.openclawVersion ? j.openclawVersion : '';
-      var badge = j.configured
-        ? '<span class="badge badge-ok">Configured</span>'
-        : '<span class="badge badge-warn">Not configured</span>';
+      var badge;
+      if (j.entryExists === false) {
+        badge = '<span class="badge badge-err">Not installed</span>';
+      } else if (j.configured) {
+        badge = '<span class="badge badge-ok">Configured</span>';
+      } else {
+        badge = '<span class="badge badge-warn">Not configured</span>';
+      }
       statusEl.innerHTML = badge + (ver ? ' <span class="version-tag">' + ver + '</span>' : '');
 
       if (statusDetailsEl) {
-        statusDetailsEl.textContent = 'Gateway: ' + (j.gatewayTarget || '(unknown)');
+        if (j.entryExists === false) {
+          statusDetailsEl.textContent = 'OpenClaw binary not found — check Dockerfile build';
+        } else {
+          statusDetailsEl.textContent = 'Gateway: ' + (j.gatewayTarget || '(unknown)');
+        }
       }
 
       if (configReloadEl && configTextEl) loadConfigRaw();
