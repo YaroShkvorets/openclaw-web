@@ -1,5 +1,91 @@
 // Served at /setup/app.js — Pinax-branded OpenClaw Setup (client-side)
 
+// ---------------------------------------------------------------------------
+// Custom modal system (replaces window.alert/confirm/prompt)
+// ---------------------------------------------------------------------------
+function createModal(): {
+  alert: (msg: string) => Promise<void>;
+  confirm: (msg: string) => Promise<boolean>;
+  prompt: (label: string, opts?: { placeholder?: string; type?: string; select?: string[] }) => Promise<string | null>;
+} {
+  // Overlay
+  const overlay = document.createElement("div");
+  overlay.id = "modalOverlay";
+  overlay.style.cssText = "display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1000;align-items:center;justify-content:center;backdrop-filter:blur(2px)";
+
+  const box = document.createElement("div");
+  box.style.cssText = "background:var(--surface);border:1px solid var(--border-hover);border-radius:12px;padding:1.5rem 2rem;max-width:420px;width:90%;color:var(--text);font-family:var(--font)";
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+
+  function show(html: string): { box: HTMLDivElement; close: () => void } {
+    box.innerHTML = html;
+    overlay.style.display = "flex";
+    return {
+      box,
+      close: () => { overlay.style.display = "none"; },
+    };
+  }
+
+  function btnHtml(label: string, cls: string, id: string): string {
+    return `<button id="${id}" class="btn ${cls}" style="min-width:80px">${label}</button>`;
+  }
+
+  return {
+    alert(msg: string): Promise<void> {
+      return new Promise((resolve) => {
+        const { box: b, close } = show(`
+          <div style="margin-bottom:1rem;line-height:1.5">${msg}</div>
+          <div style="display:flex;justify-content:flex-end">${btnHtml("OK", "btn-primary", "modalOk")}</div>
+        `);
+        b.querySelector("#modalOk")!.addEventListener("click", () => { close(); resolve(); });
+      });
+    },
+
+    confirm(msg: string): Promise<boolean> {
+      return new Promise((resolve) => {
+        const { box: b, close } = show(`
+          <div style="margin-bottom:1rem;line-height:1.5">${msg}</div>
+          <div style="display:flex;justify-content:flex-end;gap:0.5rem">
+            ${btnHtml("Cancel", "btn-secondary", "modalCancel")}
+            ${btnHtml("Confirm", "btn-primary", "modalOk")}
+          </div>
+        `);
+        b.querySelector("#modalCancel")!.addEventListener("click", () => { close(); resolve(false); });
+        b.querySelector("#modalOk")!.addEventListener("click", () => { close(); resolve(true); });
+      });
+    },
+
+    prompt(label: string, opts?: { placeholder?: string; type?: string; select?: string[] }): Promise<string | null> {
+      return new Promise((resolve) => {
+        let inputHtml: string;
+        if (opts?.select) {
+          const options = opts.select.map((v) => `<option value="${v}">${v}</option>`).join("");
+          inputHtml = `<select id="modalInput" style="width:100%;padding:0.55rem 0.75rem;margin-top:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font);font-size:0.85rem">${options}</select>`;
+        } else {
+          inputHtml = `<input id="modalInput" type="${opts?.type ?? "text"}" placeholder="${opts?.placeholder ?? ""}" style="width:100%;padding:0.55rem 0.75rem;margin-top:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font);font-size:0.85rem" />`;
+        }
+        const { box: b, close } = show(`
+          <div style="margin-bottom:0.25rem;font-weight:500">${label}</div>
+          ${inputHtml}
+          <div style="display:flex;justify-content:flex-end;gap:0.5rem;margin-top:1rem">
+            ${btnHtml("Cancel", "btn-secondary", "modalCancel")}
+            ${btnHtml("OK", "btn-primary", "modalOk")}
+          </div>
+        `);
+        const input = b.querySelector("#modalInput") as HTMLInputElement | HTMLSelectElement;
+        input.focus();
+        const submit = () => { close(); resolve(input.value || null); };
+        b.querySelector("#modalCancel")!.addEventListener("click", () => { close(); resolve(null); });
+        b.querySelector("#modalOk")!.addEventListener("click", submit);
+        if (input.tagName === "INPUT") {
+          input.addEventListener("keydown", (e) => { if ((e as KeyboardEvent).key === "Enter") submit(); });
+        }
+      });
+    },
+  };
+}
+
 interface AuthOption {
   value: string;
   label: string;
@@ -40,6 +126,7 @@ interface DevicesResponse {
 
 (function () {
   const $ = (id: string) => document.getElementById(id);
+  const modal = createModal();
 
   const statusEl = $("status")!;
   const statusDetailsEl = $("statusDetails");
@@ -284,7 +371,7 @@ interface DevicesResponse {
 
   async function saveConfigRaw(): Promise<void> {
     if (!configTextEl) return;
-    if (!confirm("Save config and restart gateway?")) return;
+    if (!await modal.confirm("Save config and restart gateway?")) return;
     if (configOutEl) configOutEl.textContent = "Saving...\n";
     try {
       const j = await httpJson<{ ok: boolean; path?: string }>("/setup/api/config/raw", {
@@ -306,8 +393,8 @@ interface DevicesResponse {
   // ---------------------------------------------------------------------------
   async function runImport(): Promise<void> {
     const f = importFileEl?.files?.[0];
-    if (!f) { alert("Pick a .tar.gz file first"); return; }
-    if (!confirm("Import backup? This overwrites files and restarts the gateway.")) return;
+    if (!f) { await modal.alert("Pick a .tar.gz file first"); return; }
+    if (!await modal.confirm("Import backup? This overwrites files and restarts the gateway.")) return;
     if (importOutEl) importOutEl.textContent = `Uploading ${f.name}...\n`;
     try {
       const buf = await f.arrayBuffer();
@@ -333,14 +420,9 @@ interface DevicesResponse {
   const pairingBtn = $("pairingApprove");
   if (pairingBtn) {
     pairingBtn.onclick = async () => {
-      let channel = prompt("Channel (telegram or discord):");
+      const channel = await modal.prompt("Channel", { select: ["telegram", "discord", "slack"] });
       if (!channel) return;
-      channel = channel.trim().toLowerCase();
-      if (channel !== "telegram" && channel !== "discord") {
-        alert('Must be "telegram" or "discord"');
-        return;
-      }
-      const code = prompt("Pairing code:");
+      const code = await modal.prompt("Pairing code", { placeholder: "Enter pairing code" });
       if (!code) return;
       logEl.textContent += `\nApproving ${channel} pairing...\n`;
       try {
@@ -365,7 +447,7 @@ interface DevicesResponse {
   const devicesListEl = $("devicesList");
 
   async function approveDevice(requestId: string): Promise<void> {
-    if (!confirm(`Approve device ${requestId}?`)) return;
+    if (!await modal.confirm(`Approve device <code>${requestId}</code>?`)) return;
     if (devicesListEl) devicesListEl.textContent = "Approving...";
     try {
       const j = await httpJson<{ output?: string }>("/setup/api/devices/approve", {
@@ -411,7 +493,7 @@ interface DevicesResponse {
   // Reset
   // ---------------------------------------------------------------------------
   $("reset")!.onclick = async () => {
-    if (!confirm("Reset setup? This deletes the config so you can re-run onboarding.")) return;
+    if (!await modal.confirm("Reset setup? This deletes the config so you can re-run onboarding.")) return;
     logEl.textContent = "Resetting...\n";
     try {
       const res = await fetch("/setup/api/reset", { method: "POST", credentials: "same-origin" });
