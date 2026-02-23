@@ -150,23 +150,37 @@ interface DevicesResponse {
   // Accordion logic
   // ---------------------------------------------------------------------------
   document.querySelectorAll<HTMLButtonElement>(".accordion-trigger").forEach((btn) => {
+    const content = btn.nextElementSibling as HTMLElement;
+
+    // After expand transition ends, switch to max-height:none so content is never clipped
+    content.addEventListener("transitionend", () => {
+      if (btn.getAttribute("aria-expanded") === "true") {
+        content.style.maxHeight = "none";
+      }
+    });
+
     btn.addEventListener("click", () => {
-      const content = btn.nextElementSibling as HTMLElement;
       const isOpen = btn.getAttribute("aria-expanded") === "true";
       btn.setAttribute("aria-expanded", String(!isOpen));
       if (!isOpen) {
+        // Set explicit height first to trigger CSS transition, then let transitionend switch to none
         content.style.maxHeight = content.scrollHeight + "px";
         content.style.opacity = "1";
       } else {
+        // Collapse: first pin current height, then force reflow, then set to 0
+        content.style.maxHeight = content.scrollHeight + "px";
+        content.offsetHeight; // force reflow
         content.style.maxHeight = "0";
         content.style.opacity = "0";
       }
     });
   });
 
-  // Auto-open first section
-  const firstTrigger = document.querySelector<HTMLButtonElement>(".accordion-trigger");
-  if (firstTrigger) firstTrigger.click();
+  // Auto-open first section (deferred so fonts/content are ready)
+  requestAnimationFrame(() => {
+    const firstTrigger = document.querySelector<HTMLButtonElement>(".accordion-trigger");
+    if (firstTrigger) firstTrigger.click();
+  });
 
   // ---------------------------------------------------------------------------
   // Auth provider rendering
