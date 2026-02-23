@@ -881,10 +881,20 @@ const SETUP_HTML = `<!doctype html>
       </div></div>
     </div>
 
-    <!-- 2b. Custom provider -->
+    <!-- GitHub Webhook -->
     <div class="section">
       <button class="accordion-trigger" aria-expanded="false">
-        <span>③ Custom Provider (advanced)</span>
+        <span>③ GitHub Webhook Proxy</span>
+      </button>
+      <div class="accordion-content"><div class="inner">
+        <div id="webhookConfig" class="muted">Loading...</div>
+      </div></div>
+    </div>
+
+    <!-- Custom provider (hidden) -->
+    <div class="section" style="display:none">
+      <button class="accordion-trigger" aria-expanded="false">
+        <span>Custom Provider (advanced)</span>
       </button>
       <div class="accordion-content"><div class="inner">
         <p class="muted">OpenAI-compatible API with custom base URL (Ollama, vLLM, LM Studio, etc.)</p>
@@ -933,17 +943,7 @@ const SETUP_HTML = `<!doctype html>
       </div></div>
     </div>
 
-    <!-- 5. GitHub Webhook -->
-    <div class="section">
-      <button class="accordion-trigger" aria-expanded="false">
-        <span>⑤ GitHub Webhook Proxy</span>
-      </button>
-      <div class="accordion-content"><div class="inner">
-        <div id="webhookConfig" class="muted">Loading...</div>
-      </div></div>
-    </div>
-
-    <!-- 6. Debug console -->
+    <!-- Debug console -->
     <div class="section">
       <button class="accordion-trigger" aria-expanded="false">
         <span>⚙ Debug Console</span>
