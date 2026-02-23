@@ -534,6 +534,8 @@ const SETUP_HTML = `<!doctype html>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>OpenClaw Setup — Pinax</title>
+  <link rel="icon" type="image/png" href="/setup/favicon.png" />
+  <link rel="apple-touch-icon" href="/setup/favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -1040,6 +1042,7 @@ function errorPage(title: string, detail: string, steps: string[]): string {
 <html lang="en"><head>
 <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>${title} — OpenClaw</title>
+<link rel="icon" type="image/png" href="/setup/favicon.png" />
 <style>
   body { font-family: 'Space Grotesk', system-ui, sans-serif; background: #0f0f0e; color: #fffffe; margin: 0; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 2rem; }
   .card { max-width: 560px; background: #1a1a19; border: 1px solid #2a2a29; border-radius: 12px; padding: 2rem 2.5rem; }
@@ -1093,6 +1096,14 @@ async function handleRequest(req: Request): Promise<Response> {
     });
   }
 
+  // Favicon (no auth)
+  if (method === "GET" && (pathname === "/favicon.ico" || pathname === "/favicon.png")) {
+    try {
+      const favicon = fs.readFileSync(path.join(process.cwd(), "assets", "favicon.png"));
+      return new Response(favicon, { headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=86400" } });
+    } catch { return new Response("", { status: 404 }); }
+  }
+
   // GitHub webhook endpoint (no setup auth, uses HMAC)
   if (method === "POST" && pathname === "/github/webhook") {
     return handleGitHubWebhook(req);
@@ -1107,6 +1118,10 @@ async function handleRequest(req: Request): Promise<Response> {
     if (method === "GET" && pathname === "/setup/app.js") {
       const js = fs.readFileSync(path.join(process.cwd(), "src", "setup-app.js"), "utf8");
       return new Response(js, { headers: { "Content-Type": "application/javascript" } });
+    }
+    if (method === "GET" && pathname === "/setup/favicon.png") {
+      const favicon = fs.readFileSync(path.join(process.cwd(), "assets", "favicon.png"));
+      return new Response(favicon, { headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=86400" } });
     }
     if (method === "GET" && pathname === "/setup/api/status") return handleSetupStatus();
     if (method === "GET" && pathname === "/setup/api/auth-groups") return json({ ok: true, authGroups: AUTH_GROUPS });
