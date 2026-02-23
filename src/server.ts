@@ -1116,8 +1116,7 @@ async function handleRequest(req: Request): Promise<Response> {
 
     if (method === "GET" && pathname === "/setup") return html(SETUP_HTML);
     if (method === "GET" && pathname === "/setup/app.js") {
-      const js = fs.readFileSync(path.join(process.cwd(), "src", "setup-app.js"), "utf8");
-      return new Response(js, { headers: { "Content-Type": "application/javascript" } });
+      return new Response(setupAppBundle, { headers: { "Content-Type": "application/javascript" } });
     }
     if (method === "GET" && pathname === "/setup/favicon.png") {
       const favicon = fs.readFileSync(path.join(process.cwd(), "assets", "favicon.png"));
@@ -1631,6 +1630,21 @@ interface WSData {
   upstream: WebSocket | null;
   buffered: (string | Buffer)[];
 }
+
+// ---------------------------------------------------------------------------
+// Bun.serve
+// ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Bundle client-side TypeScript at startup
+// ---------------------------------------------------------------------------
+const setupAppBuildResult = await Bun.build({
+  entrypoints: [path.join(import.meta.dir, "setup-app.ts")],
+  minify: true,
+  target: "browser",
+});
+const setupAppBundle = setupAppBuildResult.success
+  ? await setupAppBuildResult.outputs[0].text()
+  : `console.error("Failed to bundle setup-app.ts");`;
 
 // ---------------------------------------------------------------------------
 // Bun.serve
