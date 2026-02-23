@@ -860,7 +860,7 @@ const SETUP_HTML = `<!doctype html>
     <!-- 2. Channels -->
     <div class="section">
       <button class="accordion-trigger" aria-expanded="false">
-        <span>② Channels (optional)</span>
+        <span>② Channels</span>
       </button>
       <div class="accordion-content"><div class="inner">
         <p class="muted">Add channels now or later in the OpenClaw UI.</p>
