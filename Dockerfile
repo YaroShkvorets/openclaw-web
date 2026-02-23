@@ -39,8 +39,8 @@ ENV OPENCLAW_PREFER_PNPM=1
 RUN pnpm ui:install && pnpm ui:build
 
 
-# Runtime image
-FROM node:22-bookworm
+# Runtime image — Bun for the wrapper, Node for OpenClaw gateway
+FROM oven/bun:latest AS runtime
 ENV NODE_ENV=production
 
 RUN apt-get update \
@@ -49,6 +49,13 @@ RUN apt-get update \
     tini \
     python3 \
     python3-venv \
+    curl \
+    tar \
+  && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js (needed for OpenClaw gateway subprocess)
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+  && apt-get install -y nodejs \
   && rm -rf /var/lib/apt/lists/*
 
 # `openclaw update` expects pnpm. Provide it in the runtime image.
@@ -65,9 +72,8 @@ ENV PATH="/data/npm/bin:/data/pnpm:${PATH}"
 
 WORKDIR /app
 
-# Wrapper deps
+# No npm install needed — Bun runs TypeScript natively
 COPY package.json ./
-RUN npm install --omit=dev && npm cache clean --force
 
 # Copy built openclaw
 COPY --from=openclaw-build /openclaw /openclaw
@@ -81,9 +87,8 @@ COPY src ./src
 # The wrapper listens on $PORT.
 # IMPORTANT: Do not set a default PORT here.
 # Railway injects PORT at runtime and routes traffic to that port.
-# If we force a different port, deployments can come up but the domain will route elsewhere.
 EXPOSE 8080
 
 # Ensure PID 1 reaps zombies and forwards signals.
 ENTRYPOINT ["tini", "--"]
-CMD ["node", "src/server.js"]
+CMD ["bun", "run", "src/server.ts"]

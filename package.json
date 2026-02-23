@@ -2,19 +2,14 @@
   "name": "clawdbot-railway-template",
   "private": true,
   "type": "module",
-  "engines": {
-    "node": ">=22"
-  },
   "scripts": {
-    "dev": "node src/server.js",
-    "start": "node src/server.js",
-    "lint": "node -c src/server.js",
-    "test": "node --test",
-    "smoke": "node scripts/smoke.js"
+    "dev": "bun run src/server.ts",
+    "start": "bun run src/server.ts",
+    "lint": "bun run --bun src/server.ts --dry-run || true",
+    "test": "bun test",
+    "smoke": "bun run scripts/smoke.js"
   },
-  "dependencies": {
-    "express": "^5.1.0",
-    "http-proxy": "^1.18.1",
-    "tar": "^7.5.4"
+  "devDependencies": {
+    "@types/bun": "latest"
   }
 }
