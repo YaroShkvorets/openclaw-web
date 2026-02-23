@@ -330,15 +330,15 @@ function extractDeviceRequestIds(text: string): string[] {
 // Auth groups (provider list for setup wizard)
 // ---------------------------------------------------------------------------
 const AUTH_GROUPS = [
-  { value: "openai", label: "OpenAI", hint: "Codex OAuth + API key", options: [
-    { value: "codex-cli", label: "OpenAI Codex OAuth (Codex CLI)" },
-    { value: "openai-codex", label: "OpenAI Codex (ChatGPT OAuth)" },
-    { value: "openai-api-key", label: "OpenAI API key" }
-  ]},
   { value: "anthropic", label: "Anthropic", hint: "Claude Code CLI + API key", options: [
     { value: "claude-cli", label: "Anthropic token (Claude Code CLI)" },
     { value: "token", label: "Anthropic token (paste setup-token)" },
     { value: "apiKey", label: "Anthropic API key" }
+  ]},
+  { value: "openai", label: "OpenAI", hint: "Codex OAuth + API key", options: [
+    { value: "codex-cli", label: "OpenAI Codex OAuth (Codex CLI)" },
+    { value: "openai-codex", label: "OpenAI Codex (ChatGPT OAuth)" },
+    { value: "openai-api-key", label: "OpenAI API key" }
   ]},
   { value: "google", label: "Google", hint: "Gemini API key + OAuth", options: [
     { value: "gemini-api-key", label: "Google Gemini API key" },
