@@ -872,7 +872,6 @@ const SETUP_HTML = `<!doctype html>
       </div>
       <div class="status-links">
         <a href="/openclaw" target="_blank">Control UI ↗</a>
-        <a href="/setup/export">Backup ↓</a>
       </div>
     </div>
 
@@ -907,6 +906,15 @@ const SETUP_HTML = `<!doctype html>
           <button id="consoleRun" class="btn btn-secondary btn-sm">Run</button>
         </div>
         <pre id="consoleOut"></pre>
+      </div>
+
+      <div class="import-inline" style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border)">
+        <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+          <input id="importFile" type="file" accept=".tar.gz,application/gzip" style="flex:1;min-width:200px" />
+          <button id="importRun" class="btn btn-danger btn-sm">📦 Import Backup</button>
+          <a href="/setup/export" class="btn btn-secondary btn-sm" style="text-decoration:none">⬇ Export Backup</a>
+        </div>
+        <pre id="importOut"></pre>
       </div>
 
       <details style="margin-top: 0.5rem">
@@ -1022,20 +1030,7 @@ const SETUP_HTML = `<!doctype html>
       </div></div>
     </div>
 
-    <!-- 7. Import -->
-    <div class="section">
-      <button class="accordion-trigger" aria-expanded="false">
-        <span>⚙ Import Backup</span>
-      </button>
-      <div class="accordion-content"><div class="inner">
-        <div class="muted">Restores a backup into <code>/data</code> and restarts the gateway.</div>
-        <input id="importFile" type="file" accept=".tar.gz,application/gzip" style="margin-top:0.5rem" />
-        <div class="btn-row">
-          <button id="importRun" class="btn btn-danger btn-sm">Import</button>
-        </div>
-        <pre id="importOut"></pre>
-      </div></div>
-    </div>
+    <!-- (Import Backup moved to actions bar above) -->
 
     <div style="text-align:center; margin-top:2rem; padding-top:1rem; border-top:1px solid var(--border)">
       <span class="muted">Powered by <a href="https://pinax.network" target="_blank">Pinax</a> × <a href="https://openclaw.ai" target="_blank">OpenClaw</a></span>
