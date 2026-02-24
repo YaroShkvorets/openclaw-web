@@ -1685,6 +1685,7 @@ async function proxyToGateway(req: Request): Promise<Response> {
 // ---------------------------------------------------------------------------
 interface WSData {
   targetUrl: string;
+  originHeader: string | null;
   upstream: WebSocket | null;
   buffered: (string | Buffer)[];
 }
@@ -1730,6 +1731,7 @@ const server = Bun.serve<WSData>({
       const success = server.upgrade(req, {
         data: {
           targetUrl: wsTarget,
+          originHeader: req.headers.get("origin"),
           upstream: null,
           buffered: [],
         } satisfies WSData,
@@ -1754,7 +1756,9 @@ const server = Bun.serve<WSData>({
       }
       targetUrl = u.toString();
 
-      const upstream = new WebSocket(targetUrl);
+      const wsHeaders: Record<string, string> = {};
+      if (data.originHeader) wsHeaders.origin = data.originHeader;
+      const upstream = new WebSocket(targetUrl, { headers: wsHeaders });
 
       upstream.onopen = () => {
         // Flush buffered messages
