@@ -6,18 +6,6 @@ import os from "node:os";
 import path from "node:path";
 
 // ---------------------------------------------------------------------------
-// Env migration: deprecated CLAWDBOT_* → OPENCLAW_*
-// ---------------------------------------------------------------------------
-for (const suffix of ["PUBLIC_PORT", "STATE_DIR", "WORKSPACE_DIR", "GATEWAY_TOKEN", "CONFIG_PATH"]) {
-  const oldKey = `CLAWDBOT_${suffix}`;
-  const newKey = `OPENCLAW_${suffix}`;
-  if (process.env[oldKey] && !process.env[newKey]) {
-    process.env[newKey] = process.env[oldKey];
-  }
-  delete process.env[oldKey];
-}
-
-// ---------------------------------------------------------------------------
 // Config constants
 // ---------------------------------------------------------------------------
 const PORT = parseInt(process.env.PORT ?? process.env.OPENCLAW_PUBLIC_PORT ?? "3000", 10);
@@ -104,24 +92,7 @@ function isConfigured(): boolean {
   } catch { return false; }
 }
 
-// Legacy config migration
-(function migrateLegacyConfigFile() {
-  if (process.env.OPENCLAW_CONFIG_PATH?.trim()) return;
-  const canonical = path.join(STATE_DIR, "openclaw.json");
-  if (fs.existsSync(canonical)) return;
-  for (const legacy of ["clawdbot.json", "moltbot.json"]) {
-    const legacyPath = path.join(STATE_DIR, legacy);
-    try {
-      if (fs.existsSync(legacyPath)) {
-        fs.renameSync(legacyPath, canonical);
-        console.log(`[migration] Renamed ${legacy} → openclaw.json`);
-        return;
-      }
-    } catch (err) {
-      console.warn(`[migration] Failed to rename ${legacy}: ${err}`);
-    }
-  }
-})();
+
 
 // ---------------------------------------------------------------------------
 // Gateway process management
@@ -974,12 +945,37 @@ const SETUP_HTML = `<!doctype html>
       </div></div>
     </div>
 
-    <!-- GitHub Webhook -->
+    <!-- GitHub App & Webhook -->
     <div class="section">
       <button class="accordion-trigger" aria-expanded="false">
-        <span>③ GitHub Webhook Proxy</span>
+        <span>③ GitHub App &amp; Webhook Proxy</span>
       </button>
       <div class="accordion-content"><div class="inner">
+        <p class="muted">Configure a GitHub App for webhook-driven workflows. The webhook proxy receives GitHub events, adds 👀 reactions, and forwards them to OpenClaw hooks.</p>
+
+        <label>GitHub App ID</label>
+        <input id="githubAppId" type="text" placeholder="123456" />
+        <div class="hint">From <strong>Settings → Developer settings → GitHub Apps → App ID</strong></div>
+
+        <label>GitHub App Installation ID</label>
+        <input id="githubInstallationId" type="text" placeholder="12345678" />
+        <div class="hint">From the URL after installing the app: <code>/installations/&lt;id&gt;</code></div>
+
+        <label>GitHub App Private Key (PEM)</label>
+        <textarea id="githubAppPem" style="min-height:120px;font-size:0.75rem" placeholder="-----BEGIN RSA PRIVATE KEY-----&#10;...&#10;-----END RSA PRIVATE KEY-----"></textarea>
+        <div class="hint">Download from GitHub App settings → Private keys</div>
+
+        <label>Webhook Secret</label>
+        <input id="githubWebhookSecret" type="password" placeholder="your-webhook-secret" />
+        <div class="hint">Must match the secret in your GitHub App webhook settings</div>
+
+        <div class="btn-row">
+          <button id="githubAppSave" class="btn btn-primary btn-sm">💾 Save GitHub App Config</button>
+        </div>
+        <pre id="githubAppOut"></pre>
+
+        <div class="divider"></div>
+        <p class="muted" style="font-weight:500">Current webhook proxy status:</p>
         <div id="webhookConfig" class="muted">Loading...</div>
       </div></div>
     </div>
@@ -1173,6 +1169,7 @@ async function handleRequest(req: Request): Promise<Response> {
     if (method === "POST" && pathname === "/setup/api/pairing/approve") return handlePairingApprove(req);
     if (method === "GET" && pathname === "/setup/api/devices/pending") return handleDevicesPending();
     if (method === "POST" && pathname === "/setup/api/devices/approve") return handleDevicesApprove(req);
+    if (method === "POST" && pathname === "/setup/api/github-app/save") return handleGitHubAppSave(req);
     if (method === "POST" && pathname === "/setup/api/reset") return handleReset();
     if (method === "GET" && pathname === "/setup/export") return handleExport();
     if (method === "POST" && pathname === "/setup/import") return handleImport(req);
@@ -1574,6 +1571,56 @@ async function handleDevicesApprove(req: Request): Promise<Response> {
   if (!/^[A-Za-z0-9_-]+$/.test(id)) return json({ ok: false, error: "Invalid device request ID" }, 400);
   const r = await runCmd(OPENCLAW_NODE, clawArgs(["devices", "approve", id]));
   return json({ ok: r.code === 0, output: redactSecrets(r.output) }, r.code === 0 ? 200 : 500);
+}
+
+async function handleGitHubAppSave(req: Request): Promise<Response> {
+  try {
+    const payload = (await req.json()) as {
+      appId?: string;
+      installationId?: string;
+      pem?: string;
+      webhookSecret?: string;
+    };
+
+    const appId = (payload.appId || "").trim();
+    const installationId = (payload.installationId || "").trim();
+    const pem = (payload.pem || "").trim();
+    const webhookSecret = (payload.webhookSecret || "").trim();
+
+    if (!appId || !installationId || !pem) {
+      return json({ ok: false, error: "App ID, Installation ID, and PEM key are all required." }, 400);
+    }
+
+    if (!pem.includes("PRIVATE KEY")) {
+      return json({ ok: false, error: "PEM does not look like a private key." }, 400);
+    }
+
+    // Save PEM to state dir
+    const credDir = path.join(STATE_DIR, "credentials");
+    fs.mkdirSync(credDir, { recursive: true });
+    const pemPath = path.join(credDir, "github-app-private-key.pem");
+    fs.writeFileSync(pemPath, pem, { encoding: "utf8", mode: 0o600 });
+
+    const envHints = [
+      `GITHUB_APP_ID=${appId}`,
+      `GITHUB_INSTALLATION_ID=${installationId}`,
+      `GITHUB_APP_PEM_PATH=${pemPath}`,
+    ];
+    if (webhookSecret) envHints.push(`GITHUB_WEBHOOK_SECRET=${webhookSecret}`);
+
+    const output = [
+      `✓ PEM saved to ${pemPath}`,
+      "",
+      "Set these Railway environment variables and redeploy:",
+      ...envHints.map((e) => `  ${e}`),
+      "",
+      "After redeploy, the webhook proxy will be active at POST /github/webhook",
+    ].join("\n");
+
+    return json({ ok: true, output });
+  } catch (err) {
+    return json({ ok: false, error: String(err) }, 500);
+  }
 }
 
 async function handleReset(): Promise<Response> {
