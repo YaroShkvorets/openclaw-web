@@ -59,8 +59,7 @@ const GITHUB_WEBHOOK_SECRET = process.env.GITHUB_WEBHOOK_SECRET || "";
 const GITHUB_APP_ID = process.env.GITHUB_APP_ID || "";
 const GITHUB_INSTALLATION_ID = process.env.GITHUB_INSTALLATION_ID || "";
 const GITHUB_APP_PEM_PATH = process.env.GITHUB_APP_PEM_PATH || "";
-const OPENCLAW_HOOKS_URL = process.env.OPENCLAW_HOOKS_URL || `${GATEWAY_TARGET}/hooks/github`;
-const OPENCLAW_HOOKS_TOKEN = process.env.OPENCLAW_HOOKS_TOKEN || OPENCLAW_GATEWAY_TOKEN;
+const GITHUB_HOOKS_URL = process.env.GITHUB_HOOKS_URL || `${GATEWAY_TARGET}/hooks/github`;
 
 let ghCachedToken: string | null = null;
 let ghTokenExpiry = 0;
@@ -1238,13 +1237,13 @@ async function handleGitHubWebhook(req: Request): Promise<Response> {
     addEyesReaction(payload, event);
   }
 
-  // Forward to OpenClaw hooks
+  // Forward to GitHub hooks
   try {
-    const resp = await fetch(OPENCLAW_HOOKS_URL, {
+    const resp = await fetch(GITHUB_HOOKS_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${OPENCLAW_HOOKS_TOKEN}`,
+        "Authorization": `Bearer ${OPENCLAW_GATEWAY_TOKEN}`,
         "X-GitHub-Event": event,
         "X-GitHub-Delivery": delivery,
       },
@@ -1292,8 +1291,7 @@ function handleChannelsEnv(): Response {
   ];
   const channelEnvKeys = [
     // Explicit known keys
-    "OPENCLAW_GATEWAY_TOKEN", "OPENCLAW_HOOKS_TOKEN", "OPENCLAW_HOOKS_URL",
-    "GITHUB_APP_ID", "GITHUB_INSTALLATION_ID", "GITHUB_APP_PEM_PATH", "GITHUB_WEBHOOK_SECRET",
+    "GITHUB_WEBHOOK_SECRET",
   ];
 
   const result: Record<string, string> = {};
@@ -1323,8 +1321,7 @@ function handleWebhookStatus(): Response {
       GITHUB_INSTALLATION_ID: GITHUB_INSTALLATION_ID || "(not set)",
       GITHUB_APP_PEM_PATH: GITHUB_APP_PEM_PATH || "(not set)",
       GITHUB_APP_PEM_EXISTS: pemExists,
-      OPENCLAW_HOOKS_URL: OPENCLAW_HOOKS_URL || "(not set)",
-      OPENCLAW_HOOKS_TOKEN: OPENCLAW_HOOKS_TOKEN ? "••••••" : "(not set)",
+      GITHUB_HOOKS_URL: GITHUB_HOOKS_URL || "(not set)",
     },
   });
 }
