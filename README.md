@@ -46,7 +46,6 @@ Then visit `https://<your-app>.up.railway.app/setup` to complete setup.
 | `GITHUB_INSTALLATION_ID` | Installation ID for your org/user |
 | `GITHUB_APP_PEM_PATH` | Path to the app's private key PEM file (e.g. `/data/.openclaw/credentials/github-app-private-key.pem`) |
 | `GITHUB_WEBHOOK_SECRET` | Webhook secret (must match what's configured in the GitHub App) |
-| `OPENCLAW_HOOKS_TOKEN` | Token for forwarding webhooks to OpenClaw hooks endpoint |
 
 ### Slack App (optional)
 

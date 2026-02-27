@@ -556,6 +556,31 @@ interface DevicesResponse {
   }
 
   // ---------------------------------------------------------------------------
+  // Channel env display
+  // ---------------------------------------------------------------------------
+  const channelEnvListEl = $("channelEnvList");
+
+  async function refreshChannelEnv(): Promise<void> {
+    if (!channelEnvListEl) return;
+    try {
+      const j = await httpJson<{ ok: boolean; env: Record<string, string> }>("/setup/api/channels/env");
+      const entries = Object.entries(j.env || {});
+      if (!entries.length) {
+        channelEnvListEl.innerHTML = '<span style="color:var(--text-dim)">No channel-related environment variables set.</span>';
+        return;
+      }
+      channelEnvListEl.innerHTML = entries.map(([key, val]) =>
+        `<div style="display:flex;justify-content:space-between;padding:0.3rem 0;border-bottom:1px solid var(--border)">` +
+        `<code style="font-size:0.78rem">${key}</code>` +
+        `<span style="color:var(--aqua);font-size:0.8rem;font-family:var(--mono)">${val}</span>` +
+        `</div>`
+      ).join("");
+    } catch (e) {
+      channelEnvListEl.textContent = `Error: ${String(e)}`;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // GitHub App config save
   // ---------------------------------------------------------------------------
   const githubAppSaveBtn = $("githubAppSave");
@@ -590,4 +615,5 @@ interface DevicesResponse {
   loadAuthGroupsFast();
   refreshStatus();
   refreshWebhookStatus();
+  refreshChannelEnv();
 })();

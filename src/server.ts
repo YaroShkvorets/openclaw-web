@@ -60,7 +60,7 @@ const GITHUB_APP_ID = process.env.GITHUB_APP_ID || "";
 const GITHUB_INSTALLATION_ID = process.env.GITHUB_INSTALLATION_ID || "";
 const GITHUB_APP_PEM_PATH = process.env.GITHUB_APP_PEM_PATH || "";
 const OPENCLAW_HOOKS_URL = process.env.OPENCLAW_HOOKS_URL || `${GATEWAY_TARGET}/hooks/github`;
-const OPENCLAW_HOOKS_TOKEN = process.env.OPENCLAW_HOOKS_TOKEN || "";
+const OPENCLAW_HOOKS_TOKEN = process.env.OPENCLAW_HOOKS_TOKEN || OPENCLAW_GATEWAY_TOKEN;
 
 let ghCachedToken: string | null = null;
 let ghTokenExpiry = 0;
@@ -942,6 +942,10 @@ const SETUP_HTML = `<!doctype html>
 
         <label>Slack app token</label>
         <input id="slackAppToken" type="password" placeholder="xapp-..." />
+
+        <div class="divider"></div>
+        <p class="muted" style="font-weight:500">Configured environment variables:</p>
+        <div id="channelEnvList" class="muted">Loading...</div>
       </div></div>
     </div>
 
@@ -1160,6 +1164,7 @@ async function handleRequest(req: Request): Promise<Response> {
     }
     if (method === "GET" && pathname === "/setup/api/status") return handleSetupStatus();
     if (method === "GET" && pathname === "/setup/api/webhook/status") return handleWebhookStatus();
+    if (method === "GET" && pathname === "/setup/api/channels/env") return handleChannelsEnv();
     if (method === "GET" && pathname === "/setup/api/auth-groups") return json({ ok: true, authGroups: AUTH_GROUPS });
     if (method === "POST" && pathname === "/setup/api/run") return handleSetupRun(req);
     if (method === "GET" && pathname === "/setup/api/debug") return handleSetupDebug();
@@ -1277,6 +1282,34 @@ async function handleSetupStatus(): Promise<Response> {
     channelsAddHelp,
     authGroups: AUTH_GROUPS,
   });
+}
+
+function handleChannelsEnv(): Response {
+  // Show all channel-related env vars with masked values
+  const channelEnvPrefixes = [
+    "TELEGRAM_", "DISCORD_", "SLACK_", "WHATSAPP_", "SIGNAL_",
+    "IRC_", "IMESSAGE_", "GOOGLECHAT_",
+  ];
+  const channelEnvKeys = [
+    // Explicit known keys
+    "OPENCLAW_GATEWAY_TOKEN", "OPENCLAW_HOOKS_TOKEN", "OPENCLAW_HOOKS_URL",
+    "GITHUB_APP_ID", "GITHUB_INSTALLATION_ID", "GITHUB_APP_PEM_PATH", "GITHUB_WEBHOOK_SECRET",
+  ];
+
+  const result: Record<string, string> = {};
+
+  // Scan all env vars for channel-related prefixes
+  for (const [key, val] of Object.entries(process.env)) {
+    if (!val) continue;
+    const isChannelEnv = channelEnvPrefixes.some((p) => key.startsWith(p));
+    const isKnownKey = channelEnvKeys.includes(key);
+    if (isChannelEnv || isKnownKey) {
+      // Mask: show first 4 chars + ••••
+      result[key] = val.length > 8 ? val.slice(0, 4) + "••••••••" : "••••••••";
+    }
+  }
+
+  return json({ ok: true, env: result });
 }
 
 function handleWebhookStatus(): Response {
