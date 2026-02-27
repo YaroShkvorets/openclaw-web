@@ -556,6 +556,35 @@ interface DevicesResponse {
   }
 
   // ---------------------------------------------------------------------------
+  // GitHub App config save
+  // ---------------------------------------------------------------------------
+  const githubAppSaveBtn = $("githubAppSave");
+  const githubAppOutEl = $("githubAppOut") as HTMLPreElement | null;
+
+  if (githubAppSaveBtn) {
+    githubAppSaveBtn.onclick = async () => {
+      const payload = {
+        appId: ($("githubAppId") as HTMLInputElement)?.value || "",
+        installationId: ($("githubInstallationId") as HTMLInputElement)?.value || "",
+        pem: ($("githubAppPem") as HTMLTextAreaElement)?.value || "",
+        webhookSecret: ($("githubWebhookSecret") as HTMLInputElement)?.value || "",
+      };
+      if (githubAppOutEl) githubAppOutEl.textContent = "Saving...\n";
+      try {
+        const j = await httpJson<{ ok: boolean; output?: string; error?: string }>("/setup/api/github-app/save", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (githubAppOutEl) githubAppOutEl.textContent = j.ok ? (j.output || "Saved.") : ("Error: " + (j.error || "Unknown"));
+        await refreshWebhookStatus();
+      } catch (e) {
+        if (githubAppOutEl) githubAppOutEl.textContent = `Error: ${String(e)}`;
+      }
+    };
+  }
+
+  // ---------------------------------------------------------------------------
   // Init
   // ---------------------------------------------------------------------------
   loadAuthGroupsFast();
