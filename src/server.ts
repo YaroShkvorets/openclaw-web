@@ -48,6 +48,10 @@ const GATEWAY_TARGET = `http://${INTERNAL_GATEWAY_HOST}:${INTERNAL_GATEWAY_PORT}
 const OPENCLAW_ENTRY = process.env.OPENCLAW_ENTRY?.trim() || "/openclaw/dist/entry.js";
 const OPENCLAW_NODE = process.env.OPENCLAW_NODE?.trim() || "node";
 
+// Gateway config from env vars
+const GATEWAY_ALLOWED_ORIGINS = process.env.GATEWAY_ALLOWED_ORIGINS?.trim();
+const GATEWAY_TRUSTED_PROXIES = process.env.GATEWAY_TRUSTED_PROXIES?.trim();
+
 function entryExists(): boolean {
   try { return fs.existsSync(OPENCLAW_ENTRY); } catch { return false; }
 }
@@ -91,7 +95,31 @@ function isConfigured(): boolean {
   } catch { return false; }
 }
 
+function patchGatewayConfig(): void {
+  if (!GATEWAY_ALLOWED_ORIGINS && !GATEWAY_TRUSTED_PROXIES) return;
 
+  const cfgPath = configPath();
+  try {
+    const cfg = JSON.parse(fs.readFileSync(cfgPath, "utf8"));
+
+    if (!cfg.gateway) cfg.gateway = {};
+
+    if (GATEWAY_ALLOWED_ORIGINS) {
+      if (!cfg.gateway.controlUi) cfg.gateway.controlUi = {};
+      cfg.gateway.controlUi.allowedOrigins = GATEWAY_ALLOWED_ORIGINS.split(",").map(s => s.trim());
+      console.log(`[wrapper] setting gateway.controlUi.allowedOrigins from GATEWAY_ALLOWED_ORIGINS`);
+    }
+
+    if (GATEWAY_TRUSTED_PROXIES) {
+      cfg.gateway.trustedProxies = GATEWAY_TRUSTED_PROXIES.split(",").map(s => s.trim());
+      console.log(`[wrapper] setting gateway.trustedProxies from GATEWAY_TRUSTED_PROXIES`);
+    }
+
+    fs.writeFileSync(cfgPath, JSON.stringify(cfg, null, 2), "utf8");
+  } catch (err) {
+    console.error(`[wrapper] failed to patch gateway config: ${err}`);
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Gateway process management
@@ -131,6 +159,9 @@ async function startGateway(): Promise<void> {
 
   fs.mkdirSync(STATE_DIR, { recursive: true });
   fs.mkdirSync(WORKSPACE_DIR, { recursive: true });
+
+  // Patch config with env-based gateway settings before starting
+  patchGatewayConfig();
 
   const args = [
     "gateway", "run",
