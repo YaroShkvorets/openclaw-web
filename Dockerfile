@@ -75,8 +75,11 @@ WORKDIR /app
 # No npm install needed — Bun runs TypeScript natively
 COPY package.json ./
 
-# Copy built openclaw
-COPY --from=openclaw-build /openclaw /openclaw
+# Copy only the runtime files from openclaw build
+# This significantly reduces image size and memory usage
+COPY --from=openclaw-build /openclaw/dist /openclaw/dist
+COPY --from=openclaw-build /openclaw/node_modules /openclaw/node_modules
+COPY --from=openclaw-build /openclaw/package.json /openclaw/package.json
 
 # Provide an openclaw executable
 RUN printf '%s\n' '#!/usr/bin/env bash' 'exec node /openclaw/dist/entry.js "$@"' > /usr/local/bin/openclaw \
