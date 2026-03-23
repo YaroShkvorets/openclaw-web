@@ -78,6 +78,7 @@ COPY package.json ./
 # Copy only the runtime files from openclaw build
 # This significantly reduces image size and memory usage
 COPY --from=openclaw-build /openclaw/dist /openclaw/dist
+COPY --from=openclaw-build /openclaw/extensions /openclaw/extensions
 COPY --from=openclaw-build /openclaw/node_modules /openclaw/node_modules
 COPY --from=openclaw-build /openclaw/package.json /openclaw/package.json
 
