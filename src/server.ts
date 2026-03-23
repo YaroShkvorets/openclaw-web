@@ -125,12 +125,29 @@ async function waitForGatewayReady(opts: { timeoutMs?: number } = {}): Promise<b
   return false;
 }
 
+/** Fix legacy configs where onboard wrote a raw IP for gateway.bind (e.g. "0.0.0.0"). */
+function patchLegacyBind(): void {
+  try {
+    const cfgPath = configPath();
+    const raw = fs.readFileSync(cfgPath, "utf8");
+    const cfg = JSON.parse(raw);
+    const bind = cfg?.gateway?.bind;
+    if (typeof bind === "string" && /^\d+\.\d+\.\d+\.\d+$/.test(bind)) {
+      cfg.gateway.bind = "loopback";
+      fs.writeFileSync(cfgPath, JSON.stringify(cfg, null, 2), "utf8");
+      console.log(`[startup] Patched gateway.bind from "${bind}" to "loopback"`);
+    }
+  } catch { /* best-effort */ }
+}
+
 async function startGateway(): Promise<void> {
   if (gatewayProc) return;
   if (!isConfigured()) throw new Error("Gateway cannot start: not configured");
 
   fs.mkdirSync(STATE_DIR, { recursive: true });
   fs.mkdirSync(WORKSPACE_DIR, { recursive: true });
+
+  patchLegacyBind();
 
   const args = [
     "gateway", "run",
